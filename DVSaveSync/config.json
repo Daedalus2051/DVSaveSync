@@ -1,0 +1,9 @@
+{
+	"SaveLocation": "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Derail Valley\\DerailValley_Data\\SaveGameData",
+	"UploadLocation": "\\\\Jupiter.local\\Transfertemp\\Game Files\\DerailValley\\DVSS",
+	"BackupOption": 2,
+	"LastUpdated": "2020-05-31T21:17:34",
+	"IncludeBackupSaveFiles": false,
+	"AllowDownloadSavegame": true,
+	"KeepAlive": true
+}
