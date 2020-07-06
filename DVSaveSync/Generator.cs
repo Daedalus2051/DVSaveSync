@@ -1,11 +1,6 @@
 ﻿using Newtonsoft.Json;
 using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Linq;
-using System.Reflection;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace DVSaveSync
 {
@@ -34,7 +29,8 @@ namespace DVSaveSync
 
                     BackupOption = BackupPreference.OnlyInDanger,
                     LastUpdated = new DateTime(2020, 5, 31, 21, 17, 34),
-                    IncludeBackupSaveFiles = false,
+                    IncludeBackupSaveFiles = true,
+                    IncludeDVBackupSaveFiles = false,
                     AllowDownloadSavegame = true,
                     KeepAlive = true
                 };
