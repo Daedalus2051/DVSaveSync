@@ -7,6 +7,9 @@ namespace DVSaveSync
     [Serializable]
     public class Configuration
     {
+        // Create a logger for use in this class
+        private static readonly log4net.ILog log = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
+
         /// <summary>
         /// Where the DV save game data is located.
         /// </summary>
@@ -55,11 +58,12 @@ namespace DVSaveSync
             try
             {
                 File.Copy($"{SaveLocation}\\savegame", $"{SaveLocation}\\savegame-dvss_{DateTime.Now:yyyy-dd-M-HH-mm-ss}.bak");
+                log.Debug("Redundant savegame backup successful.");
                 result = true;
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[Configuration.BackupSaveFile]::Error trying to backup the file!{Environment.NewLine}{ex.Message}");
+                log.Error($"Error trying to backup the file!{Environment.NewLine}{ex.Message}");
             }
             return result;
         }
@@ -78,15 +82,15 @@ namespace DVSaveSync
             try
             {
                 config = JsonConvert.DeserializeObject<Configuration>(File.ReadAllText(filePath));
+                log.Debug($"Successfully loaded config from: {filePath}");
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[Configuration.LoadConfiguration]::Error trying to open configuration file!{Environment.NewLine}{ex.Message}");
+                log.Error($"Error trying to open configuration file!{Environment.NewLine}{ex.Message}");
             }
 
             return config;
         }
-
     }
 
     public enum BackupPreference
