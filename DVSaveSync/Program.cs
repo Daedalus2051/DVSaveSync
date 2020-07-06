@@ -3,16 +3,28 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 
+// Configure log4net using the .config file
+[assembly: log4net.Config.XmlConfigurator(Watch = true)]
+// This will cause log4net to look for a configuration file
+// called DVSaveSync.exe.config in the application base
+// directory (i.e. the directory containing DVSaveSync.exe)
 namespace DVSaveSync
 {
     class Program
     {
+        // Create a logger for use in this class
+        private static readonly log4net.ILog log = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
+
         static void Main(string[] args)
         {
             string version = Assembly.GetExecutingAssembly().GetName().Version.ToString();
-            Console.WriteLine($"Starting DVSaveSwapper - {version}");
+            
+            log.Info($"Starting DVSaveSwapper - {version}");
+            //Console.WriteLine($"Starting DVSaveSwapper - {version}");
 
             string dvSaveSyncDocs = $"{Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments)}\\DVSaveSync";
+            if(log.IsDebugEnabled) log.Debug($"dvSaveSyncDocs is {dvSaveSyncDocs}");
+
             // Look for mydocs DVSaveSync folder
             if (!Directory.Exists(dvSaveSyncDocs))
             {
@@ -35,7 +47,7 @@ namespace DVSaveSync
             if (!File.Exists($"{dvSaveSyncDocs}\\config.json"))
             {
                 Console.WriteLine("No config information found, using defaults...");
-                Configuration.GenerateDefaultConfiguration(dvSaveSyncDocs);
+                Generator.CreateDefaultDVSSConfiguration(dvSaveSyncDocs);
             }
             Console.WriteLine("Loading configuration...");
             config = Configuration.LoadConfiguration($"{dvSaveSyncDocs}\\config.json");

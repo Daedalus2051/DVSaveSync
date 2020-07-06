@@ -87,28 +87,6 @@ namespace DVSaveSync
             return config;
         }
 
-        /// <summary>
-        /// If no config file exists, this method can be used 
-        /// </summary>
-        public static void GenerateDefaultConfiguration(string path)
-        {
-            Configuration config = new Configuration
-            {
-                //C:\Program Files (x86)\Steam\steamapps\common\Derail Valley
-                //C:\Program Files (x86)\Steam\steamapps\common\Derail Valley\DerailValley_Data\SaveGameData
-                SaveLocation = @"C:\Program Files (x86)\Steam\steamapps\common\Derail Valley\DerailValley_Data\SaveGameData",
-                UploadLocation = $"{Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments)}\\DVSaveSync",
-
-                BackupOption = BackupPreference.OnlyInDanger,
-                LastUpdated = new DateTime(2020, 5, 31, 21, 17, 34),
-                IncludeBackupSaveFiles = false,
-                AllowDownloadSavegame = true,
-                KeepAlive = true
-            };
-
-            string configJson = JsonConvert.SerializeObject(config);
-            File.WriteAllText($"{path}\\config.json", configJson);
-        }
     }
 
     public enum BackupPreference
