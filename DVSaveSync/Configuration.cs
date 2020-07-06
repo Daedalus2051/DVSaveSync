@@ -7,6 +7,9 @@ namespace DVSaveSync
     [Serializable]
     public class Configuration
     {
+        // Create a logger for use in this class
+        private static readonly log4net.ILog log = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
+
         /// <summary>
         /// Where the DV save game data is located.
         /// </summary>
@@ -32,10 +35,16 @@ namespace DVSaveSync
         public DateTime LastUpdated { get; set; }
 
         /// <summary>
-        /// Determines if the additional "_backup..." savegame files should be copied as well.
+        /// Determines if the built-in .bak [for the current savegame file] also gets backed up (this applies to downloading remote saves too).
         /// </summary>
         [JsonProperty("IncludeBackupSaveFiles")]
         public bool IncludeBackupSaveFiles { get; set; }
+
+        /// <summary>
+        /// Determines if the additional "_backup..." savegame files should be copied as well.
+        /// </summary>
+        [JsonProperty("IncludeDVBackupSaveFiles")]
+        public bool IncludeDVBackupSaveFiles { get; set; }
 
         /// <summary>
         /// Allow the program to copy a newer savegame file from the upload location to the local (overwriting the local savegame file).
@@ -55,11 +64,13 @@ namespace DVSaveSync
             try
             {
                 File.Copy($"{SaveLocation}\\savegame", $"{SaveLocation}\\savegame-dvss_{DateTime.Now:yyyy-dd-M-HH-mm-ss}.bak");
+                if (IncludeBackupSaveFiles) { File.Copy($"{SaveLocation}\\savegame.bak", $"{SaveLocation}\\savegame-dvss_{DateTime.Now:yyyy-dd-M-HH-mm-ss}_bak.bak"); }
+                log.Debug("Redundant savegame backup successful.");
                 result = true;
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[Configuration.BackupSaveFile]::Error trying to backup the file!{Environment.NewLine}{ex.Message}");
+                log.Error($"Error trying to backup the file!{Environment.NewLine}{ex.Message}");
             }
             return result;
         }
@@ -78,36 +89,30 @@ namespace DVSaveSync
             try
             {
                 config = JsonConvert.DeserializeObject<Configuration>(File.ReadAllText(filePath));
+                log.Debug($"Successfully loaded config from: {filePath}");
+                log.Debug($"Local save path: {config.SaveLocation}");
+                log.Debug($"Upload path: {config.UploadLocation}");
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[Configuration.LoadConfiguration]::Error trying to open configuration file!{Environment.NewLine}{ex.Message}");
+                log.Error($"Error trying to open configuration file!{Environment.NewLine}{ex.Message}");
             }
 
             return config;
         }
 
-        /// <summary>
-        /// If no config file exists, this method can be used 
-        /// </summary>
-        public static void GenerateDefaultConfiguration(string path)
+        public static void SaveConfiguration(string filePath, Configuration config)
         {
-            Configuration config = new Configuration
+            try
             {
-                //C:\Program Files (x86)\Steam\steamapps\common\Derail Valley
-                //C:\Program Files (x86)\Steam\steamapps\common\Derail Valley\DerailValley_Data\SaveGameData
-                SaveLocation = @"C:\Program Files (x86)\Steam\steamapps\common\Derail Valley\DerailValley_Data\SaveGameData",
-                UploadLocation = $"{Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments)}\\DVSaveSync",
-
-                BackupOption = BackupPreference.OnlyInDanger,
-                LastUpdated = new DateTime(2020, 5, 31, 21, 17, 34),
-                IncludeBackupSaveFiles = false,
-                AllowDownloadSavegame = true,
-                KeepAlive = true
-            };
-
-            string configJson = JsonConvert.SerializeObject(config);
-            File.WriteAllText($"{path}\\config.json", configJson);
+                log.Info("Updating configuration...");
+                string jsonConfig = JsonConvert.SerializeObject(config);
+                File.WriteAllText(filePath, jsonConfig);
+            }
+            catch (Exception ex)
+            {
+                log.Error($"Error trying to save configuration file!{Environment.NewLine}{ex.Message}");
+            }
         }
     }
 
