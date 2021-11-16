@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
 
 namespace DVSaveSync
@@ -13,8 +14,7 @@ namespace DVSaveSync
 
         public Synchronizer(Configuration config)
         {
-            if (config == null) throw new ArgumentNullException("SyncConfiguration");
-            SyncConfiguration = config;
+            SyncConfiguration = config ?? throw new ArgumentNullException("SyncConfiguration");
         }
         public Synchronizer(string localFile, string remoteFile)
         {
@@ -28,13 +28,20 @@ namespace DVSaveSync
         /// </summary>
         private void AmIValid(string caller, bool omitRemoteCheck = false)
         {
+            // TODO: refactor this
+            Exception failed = null;
             log.Debug($"Checking validity for: {caller}");
-            if (string.IsNullOrEmpty(LocalSavePath)) throw new ArgumentNullException("LocalSavePath");
-            if (string.IsNullOrEmpty(RemoteSavePath)) throw new ArgumentNullException("RemoteSavePath");
-            if (!File.Exists(LocalSavePath)) throw new FileNotFoundException($"Local file not found: {LocalSavePath}");
+            if (string.IsNullOrEmpty(LocalSavePath)) { failed = new ArgumentNullException("LocalSavePath"); log.Error("Data validation check failed!", failed); }
+            if (string.IsNullOrEmpty(RemoteSavePath)) { failed = new ArgumentNullException("RemoteSavePath"); log.Error("Data validation check failed!", failed); }
+            if (!File.Exists(LocalSavePath)) { failed = new FileNotFoundException($"Local file not found: '{LocalSavePath}'"); log.Error("Data validation check failed!", failed); }
             if (!omitRemoteCheck)
             {
-                if (!File.Exists(RemoteSavePath)) throw new FileNotFoundException($"Remote file not found: {RemoteSavePath}");
+                if (!File.Exists(RemoteSavePath)) { failed = new FileNotFoundException($"Remote file not found: '{RemoteSavePath}'"); log.Error("Data validation check failed!", failed); }
+            }
+            // throw the exception that failed
+            if (failed != null)
+            {
+                throw new Exception("Data validation check failed!", failed);
             }
         }
 
@@ -72,6 +79,39 @@ namespace DVSaveSync
 
             return syncState;
         }
+
+        internal bool SearchForGameFolder()
+        {
+            log.Info("Searching for Derail Valley Steam folder location...");
+            // List all drive letters
+            DriveInfo[] allDrives = DriveInfo.GetDrives();
+            List<string> potentialLocations = new List<string>();
+            string Steam_Default_Location = @"Program Files (x86)\Steam\steamapps\common";
+            string Steam_Custom_Location = @"SteamLibrary\steamapps\common";
+
+            // Populate them with the most common Steam location paths
+            foreach (var item in allDrives)
+            {
+                potentialLocations.Add(Path.Combine(item.Name, Steam_Default_Location));
+                potentialLocations.Add(Path.Combine(item.Name, Steam_Custom_Location));
+            }
+
+            // Iterate through complete list and check for DV folder
+            foreach (var testPath in potentialLocations)
+            {
+                log.Debug($"Checking: '{testPath}'...");
+                string locationPath = Path.Combine(testPath, "Derail Valley", "DerailValley_Data", "SaveGameData");
+                if (Directory.Exists(locationPath))
+                {
+                    log.Info("Found Derail Valley save game folder!");
+                    SyncConfiguration.SaveLocation = locationPath;
+                    return true;
+                }
+            }
+            log.Info("Unable to find folder location.");
+            return false;
+        }
+
         /// <summary>
         /// Copies the local savegame to the remote directory, overwriting the remote file.
         /// </summary>

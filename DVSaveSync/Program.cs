@@ -2,6 +2,7 @@
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using log4net;
 
 // Configure log4net using the .config file
 [assembly: log4net.Config.XmlConfigurator(Watch = true)]
@@ -13,16 +14,15 @@ namespace DVSaveSync
     class Program
     {
         // Create a logger for use in this class
-        private static readonly log4net.ILog log = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
+        private static readonly ILog log = LogManager.GetLogger(typeof(Program));
 
         static void Main(string[] args)
         {
             string version = Assembly.GetExecutingAssembly().GetName().Version.ToString();
-            
-            log.Info($"Starting DVSaveSwapper - {version}");
-            //Console.WriteLine($"Starting DVSaveSwapper - {version}");
+            string dvSaveSyncDocs = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "DVSaveSync");
 
-            string dvSaveSyncDocs = $"{Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments)}\\DVSaveSync";
+            log.Info($"Starting DVSaveSync - {version}");
+
             string configFilepath = $"{dvSaveSyncDocs}\\config.json";
 
             if (log.IsDebugEnabled) log.Debug($"dvSaveSyncDocs is {dvSaveSyncDocs}");
@@ -37,13 +37,10 @@ namespace DVSaveSync
                 }
                 catch (Exception ex)
                 {
-                    log.Error($"Failed to create app folder ({dvSaveSyncDocs})!{Environment.NewLine}{ex.Message}");
-                    Environment.Exit((int)ErrorCodes.ErrorDuringOperations);
+                    Quit(ErrorCodes.ErrorDuringOperations, $"Failed to create app folder ({dvSaveSyncDocs})!{Environment.NewLine}{ex.Message}");
                 }
             }
 
-            // Visual studio recommendation ... I guess this is like powershell's $_?
-            _ = new Configuration();
             if (!File.Exists(configFilepath))
             {
                 log.Info("No config information found, using defaults...");
@@ -53,20 +50,49 @@ namespace DVSaveSync
             Configuration config = Configuration.LoadConfiguration(configFilepath);
             Synchronizer synchro = new Synchronizer(config);
 
+            if (args.Contains("restore"))
+            {
+                log.Info("Restoring previous game saves...");
+                if(!synchro.DownloadRemoteToLocal())
+                {
+                    log.Error("Could not restore savegame files, please review logs.");
+                    Environment.Exit((int)ErrorCodes.ErrorDuringOperations);
+                }
+                log.Info("Save game files have been restored...exiting.");
+                Environment.Exit((int)ErrorCodes.NoErrors);
+            }
+
             // Look for savegame file
             log.Info("Inspecting game folder for save files...");
 
             DirectoryInfo dvDirectory = new DirectoryInfo(config.SaveLocation);
             if (!dvDirectory.Exists)
             {
-                log.Error($"Error, could not find savegame directory: '{config.SaveLocation}'");
-                Environment.Exit((int)ErrorCodes.CouldNotFindPath);
+                Console.WriteLine("DVSaveSync could not find the Derail Valley game folder... would you like to do a quick search? Y/N");
+                string response = Console.ReadLine();
+                if (response.ToUpper() == "Y")
+                {
+                    if (synchro.SearchForGameFolder())
+                    {
+                        dvDirectory = new DirectoryInfo(synchro.SyncConfiguration.SaveLocation);
+                        log.Info($"Success! Found the game folder at: {config.SaveLocation}");
+                    }
+                    else
+                    {
+                        Quit(ErrorCodes.CouldNotFindPath, $"Error, could not find savegame directory: '{config.SaveLocation}'");
+                    }
+                }
+                else
+                {
+                    Quit(ErrorCodes.CouldNotFindPath, $"Error, could not find savegame directory: '{config.SaveLocation}'");
+                }
             }
 
             // Check for valid upload location
             DirectoryInfo uploadDir = new DirectoryInfo(config.UploadLocation);
             if (!uploadDir.Exists)
             {
+                log.Warn($"The upload directory '{uploadDir.FullName}' does not exist.");
                 Console.WriteLine($"Upload location does not exist... create? Y/N");
                 string response = Console.ReadLine();
                 if (response.ToUpper() == "Y")
@@ -76,8 +102,7 @@ namespace DVSaveSync
                 }
                 else
                 {
-                    log.Error($"Exiting due to upload location not existing.");
-                    Environment.Exit((int)ErrorCodes.CouldNotFindPath);
+                    Quit(ErrorCodes.CouldNotFindPath, $"Exiting due to upload location not existing.");
                 }
             }
 
@@ -199,6 +224,35 @@ namespace DVSaveSync
             CouldNotFindSaveFiles = 1,
             CouldNotFindPath = 2,
             ErrorDuringOperations = 3
+        }
+        public static void Quit(ErrorCodes errorCode, string message="")
+        {
+            // TODO: Implement the rest of this, or refactor because...why again?
+
+            // store the inverse of the result from isnullorempty... i.e. If isnullorempty = true, then we don't log the empty string.
+            bool logMessage = !string.IsNullOrEmpty(message);
+
+            switch (errorCode)
+            {
+                case ErrorCodes.NoErrors:
+                    if (logMessage) log.Info(message);
+                    break;
+                case ErrorCodes.CouldNotFindPath:
+                    if (logMessage) log.Error(message);
+                    break;
+                case ErrorCodes.CouldNotFindSaveFiles:
+                    if (logMessage) log.Error(message);
+                    break;
+                case ErrorCodes.ErrorDuringOperations:
+                    if (logMessage) log.Error(message);
+                    break;
+                default:
+                    if (logMessage) log.Info(message);
+                    log.Warn("Unspecified error code, this is abnormal. Check the logs for errors.");
+                    break;
+            }
+
+            Environment.Exit((int)errorCode);
         }
     }
 }
