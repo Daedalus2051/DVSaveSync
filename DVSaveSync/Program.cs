@@ -23,7 +23,7 @@ namespace DVSaveSync
 
             log.Info($"Starting DVSaveSync - {version}");
 
-            string configFilepath = $"{dvSaveSyncDocs}\\config.json";
+            string configFilepath = Path.Combine(dvSaveSyncDocs, "config.json");
 
             if (log.IsDebugEnabled) log.Debug($"dvSaveSyncDocs is {dvSaveSyncDocs}");
 
@@ -115,8 +115,24 @@ namespace DVSaveSync
                 localSavegame = saveGames.FirstOrDefault(s => s.Name == "savegame").FullName;
                 if (string.IsNullOrEmpty(localSavegame))
                 {
-                    log.Warn("No savegame files found! Is the save path correct?");
-                    Environment.Exit((int)ErrorCodes.CouldNotFindSaveFiles);
+                    // If we have an empty folder, it's because they haven't played the game (and created a save)
+                    //  or more likely, they've just installed the game and need to sync down from the upload
+                    //log.Warn("No savegame files found! Is the save path correct?");
+                    //Environment.Exit((int)ErrorCodes.CouldNotFindSaveFiles);
+                    Console.Write("The savegame folder is empty...would you like to download the files from remote?");
+                    var usrResponse = Console.ReadLine();
+                    if (usrResponse.ToUpper() == "Y")
+                    {
+                        if (synchro.DownloadRemoteToLocal() == false)
+                        {
+                            log.Error("Could not download remote savegame to local folder, check the logs for errors.");
+                        }
+                        else { log.Info("Savegame has been updated from [newer] Upload savegame successfully!"); }
+                    }
+                    else
+                    {
+                        Quit(ErrorCodes.ErrorDuringOperations, "No savegame files to sync... bye now.");
+                    }
                 }
                 else
                 {

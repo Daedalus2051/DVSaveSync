@@ -53,6 +53,12 @@ namespace DVSaveSync
 
             SyncCompareState syncState;
 
+            if (File.Exists(localFile) == false)
+            {
+                syncState = SyncCompareState.LocalIsMissing;
+                return syncState;
+            }
+
             DateTime localSaveDate = new FileInfo(localFile).LastWriteTime;
             DateTime remoteSaveDate = new FileInfo(remoteFile).LastWriteTime;
 
@@ -147,12 +153,16 @@ namespace DVSaveSync
             bool success = false;
 
             try
-            {   
-                // Verify that local save is older
-                if ((GetLocalSavegameSyncState() == SyncCompareState.LocalIsOlder) == false)
+            {
+                SyncCompareState current = GetLocalSavegameSyncState();
+                if ((current == SyncCompareState.LocalIsMissing) == false)
                 {
-                    log.Warn($"Local file is NOT older than remote file... aborting download to preserve state.");
-                    return false;
+                    // Verify that local save is older
+                    if ((current == SyncCompareState.LocalIsOlder) == false)
+                    {
+                        log.Warn($"Local file is NOT older than remote file... aborting download to preserve state.");
+                        return false;
+                    }
                 }
                 if (SyncConfiguration.AllowDownloadSavegame)
                 {
@@ -196,6 +206,7 @@ namespace DVSaveSync
     {
         LocalIsOlder,
         LocalIsSame,
-        LocalIsNewer
+        LocalIsNewer,
+        LocalIsMissing
     }
 }

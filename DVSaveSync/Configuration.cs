@@ -106,7 +106,7 @@ namespace DVSaveSync
             try
             {
                 log.Info("Updating configuration...");
-                string jsonConfig = JsonConvert.SerializeObject(config);
+                string jsonConfig = JsonConvert.SerializeObject(config, Formatting.Indented);
                 File.WriteAllText(filePath, jsonConfig);
             }
             catch (Exception ex)
